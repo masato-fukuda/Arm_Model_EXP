@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>動作評価実験アンケート (EXP3)</title>
+    <style>
+        /* 共通スタイル */
+        body {
+            font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif;
+            background-color: #f5f7fa;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            padding: 30px;
+            width: 100%;
+            max-width: 600px;
+            text-align: center;
+        }
+
+        h1 {
+            color: #2c3e50;
+            font-size: 24px;
+            margin-bottom: 20px;
+        }
+
+        /* 画面切り替えのためのSPAスタイル */
+        .screen {
+            display: none;
+        }
+
+        .screen.active {
+            display: block;
+        }
+
+        /* トップ画面のスタイル */
+        p.description {
+            font-size: 16px;
+            line-height: 1.6;
+            margin-bottom: 30px;
+            text-align: left;
+        }
+
+        select {
+            width: 100%;
+            padding: 12px;
+            font-size: 16px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            box-sizing: border-box;
+        }
+
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            width: 100%;
+        }
+
+        button:hover {
+            background-color: #2980b9;
+        }
+
+        button:disabled {
+            background-color: #bdc3c7;
+            cursor: not-allowed;
+        }
+
+        /* 評価画面のスタイル */
+        .progress {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: #7f8c8d;
+        }
+
+        .video-container {
+            margin-bottom: 20px;
+            background-color: #000;
+            border-radius: 4px;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 300px;
+        }
+
+        video {
+            max-width: 100%;
+            max-height: 100%;
+        }
+
+        .evaluation-group {
+            margin-bottom: 25px;
+            text-align: left;
+        }
+
+        .evaluation-group label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            margin-bottom: 10px;
+            cursor: pointer;
+        }
+
+        .range-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: 14px;
+            color: #7f8c8d;
+            padding: 0 5px;
+        }
+
+        /* 送信中(ローディング)画面のスタイル */
+        .loader {
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px auto;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <!-- 1. トップ画面 -->
+        <div id="top-screen" class="screen active">
+            <h1>動作評価実験アンケート (EXP3)</h1>
+            <p class="description">
+                この実験では、言語指示に基づいて生成された3Dアバターの動作を主観的に評価していただきます。<br><br>
+                評価項目：<br>
+                1. 言語の指示内容と正しく合致しているか<br>
+                2. アバターの動作自体が自然であるか<br><br>
+                割り当てられた参加者IDを選択し、「アンケートに進む」をクリックしてください。
+            </p>
+            <select id="participant-id-select">
+                <option value="" disabled selected>参加者IDを選択</option>
+                <option value="A-1">A-1</option>
+                <option value="A-2">A-2</option>
+                <option value="B-1">B-1</option>
+                <option value="B-2">B-2</option>
+                <option value="C-1">C-1</option>
+                <option value="C-2">C-2</option>
+                <option value="D-1">D-1</option>
+                <option value="D-2">D-2</option>
+                <option value="E-1">E-1</option>
+                <option value="E-2">E-2</option>
+                <option value="F-1">F-1</option>
+                <option value="F-2">F-2</option>
+            </select>
+            <button id="start-btn" disabled>アンケートに進む</button>
+        </div>
+
+        <!-- 2. 評価画面 -->
+        <div id="eval-screen" class="screen">
+            <div class="progress" id="progress-text">1 / 6本目</div>
+
+            <div id="instruction-container"
+                style="margin-bottom: 20px; padding: 15px; background-color: #e8f4fd; border-left: 5px solid #3498db; text-align: left; font-size: 16px;">
+                <span style="font-weight: bold; color: #2c3e50;">動作指示：</span><span id="instruction-text"></span>
+            </div>
+
+            <div class="video-container">
+                <!-- 動画プレイヤー -->
+                <video id="video-player" autoplay loop muted playsinline>
+                    お使いのブラウザは動画タグをサポートしていません。
+                </video>
+            </div>
+
+            <div class="evaluation-group">
+                <label>1. 生成されたモーションは、モーションの品質に関わらず、動作指示にどれだけ従っているか</label>
+                <div style="font-size: 13px; color: #555; margin-bottom: 8px;">
+                    1点: 生成されたモーションは、動作指示と完全に異なる<br>
+                    2点: 生成されたモーションは、動作指示の一部のみに従っている<br>
+                    3点: 生成されたモーションは、動作指示に完全に従っている
+                </div>
+                <div class="range-labels">
+                    <span>1: 完全に異なる</span>
+                    <span>2: 一部のみ従っている</span>
+                    <span>3: 完全に従っている</span>
+                </div>
+                <input type="range" id="score1" min="1" max="3" value="2" step="1">
+            </div>
+
+            <div class="evaluation-group">
+                <label>2. 動作指示に従っているかに関わらず、生成されたモーションの品質はどうか</label>
+                <div style="font-size: 13px; color: #555; margin-bottom: 8px;">
+                    1点: 深刻な問題がある（自己交差、非現実的なポーズや動きなど）<br>
+                    2点: 軽微な問題がある（あり得る動きだが人間らしくないなど）<br>
+                    3点: 問題がない
+                </div>
+                <div class="range-labels">
+                    <span>1: 深刻な問題</span>
+                    <span>2: 軽微な問題</span>
+                    <span>3: 問題なし</span>
+                </div>
+                <input type="range" id="score2" min="1" max="3" value="2" step="1">
+            </div>
+
+            <button id="next-btn">次に進む</button>
+            <div id="debug-filename" style="text-align: right; color: #ccc; font-size: 12px; margin-top: 5px;"></div>
+        </div>
+
+        <!-- 3. 送信中画面 -->
+        <div id="loading-screen" class="screen">
+            <div class="loader"></div>
+            <h2>データを送信しています...</h2>
+            <p>画面を閉じずにお待ちください。</p>
+        </div>
+
+        <!-- 4. 終了画面 -->
+        <div id="end-screen" class="screen">
+            <h1>ご協力ありがとうございました</h1>
+            <p>データは正常に保存されました。<br>このウィンドウ（タブ）を閉じて終了してください。</p>
+        </div>
+    </div>
+
+    <script>
+        // ==========================================
+        // 設定値
+        // ==========================================
+        // TODO: EXP3用のGoogle Apps ScriptデプロイURLに書き換えてください
+        const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwX81kftZuW2VDQPSMNbx5HsDhyVXi78vztv1Ji4HCiVmmtc5ztMrba9Y1kZmue627e/exec';
+
+        // 将来的に Test03, Test04... と増える場合はこの配列に追加する
+        const TEST_FOLDERS = ['Test01', 'Test02'];
+        const VIDEO_TYPES = ['A', 'B', 'C'];
+        const VIDEOS_PER_TEST = VIDEO_TYPES.length;
+        const TOTAL_VIDEOS = TEST_FOLDERS.length * VIDEOS_PER_TEST;
+
+        // ==========================================
+        // 状態管理変数
+        // ==========================================
+        let currentParticipantId = '';
+        let currentTestFolderIndex = 0;
+        let shuffledVideoTypes = [];
+        let currentVideoIndexInTest = 0;
+        let overallVideoCount = 0;
+
+        // GASに送信する評価結果を保持する配列
+        let evaluationResults = [];
+        let idTextData = {}; // CSVからのテキストデータを保持 { "Test01": "指示テキスト", "Test02": "..." }
+
+        // CSVのパース関数
+        function parseCSV(text) {
+            const result = [];
+            const lines = text.split('\n');
+            for (let line of lines) {
+                line = line.trim();
+                if (!line) continue;
+                const row = [];
+                let inQuotes = false;
+                let currentVal = '';
+                for (let i = 0; i < line.length; i++) {
+                    const char = line[i];
+                    if (char === '"') {
+                        inQuotes = !inQuotes;
+                    } else if (char === ',' && !inQuotes) {
+                        row.push(currentVal.replace(/^"|"$/g, '').trim());
+                        currentVal = '';
+                    } else {
+                        currentVal += char;
+                    }
+                }
+                row.push(currentVal.replace(/^"|"$/g, '').trim());
+                result.push(row);
+            }
+            return result;
+        }
+
+        // 起動時にCSVを読み込む
+        fetch('ID_Text.csv')
+            .then(res => res.text())
+            .then(text => {
+                const rows = parseCSV(text);
+                // 1行目はヘッダー (ID, 動作指示)
+                for (let i = 1; i < rows.length; i++) {
+                    const row = rows[i];
+                    if (row.length >= 2) {
+                        const testId = row[0];
+                        const instruction = row[1];
+                        idTextData[testId] = instruction;
+                    }
+                }
+            })
+            .catch(err => console.error('CSV fetch error:', err));
+
+        // ==========================================
+        // DOM要素
+        // ==========================================
+        const topScreen = document.getElementById('top-screen');
+        const evalScreen = document.getElementById('eval-screen');
+        const loadingScreen = document.getElementById('loading-screen');
+        const endScreen = document.getElementById('end-screen');
+
+        const participantIdSelect = document.getElementById('participant-id-select');
+        const startBtn = document.getElementById('start-btn');
+        const nextBtn = document.getElementById('next-btn');
+
+        const progressText = document.getElementById('progress-text');
+        const videoPlayer = document.getElementById('video-player');
+        const score1Input = document.getElementById('score1');
+        const score2Input = document.getElementById('score2');
+
+        // ==========================================
+        // 関数定義
+        // ==========================================
+
+        /**
+         * 配列をランダムにシャッフルする関数 (Fisher-Yates)
+         */
+        function shuffleArray(array) {
+            const arr = [...array];
+            for (let i = arr.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [arr[i], arr[j]] = [arr[j], arr[i]];
+            }
+            return arr;
+        }
+
+        /**
+         * SPA画面切り替え関数
+         */
+        function showScreen(screenElem) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            screenElem.classList.add('active');
+        }
+
+        /**
+         * 現在のテストフォルダ内の動画順を生成して準備する
+         */
+        function prepareNextTestFolder() {
+            // A, B, C の再生順をランダムにシャッフル
+            shuffledVideoTypes = shuffleArray(VIDEO_TYPES);
+            currentVideoIndexInTest = 0;
+
+            loadCurrentVideo();
+        }
+
+        /**
+         * 現在評価する動画を読み込み・UIのリセットを行う
+         */
+        function loadCurrentVideo() {
+            const currentTestFolder = TEST_FOLDERS[currentTestFolderIndex];
+            const videoType = shuffledVideoTypes[currentVideoIndexInTest]; // "A", "B", または "C"
+
+            // "Test01" から "01" 等を抽出
+            const suffix = currentTestFolder.replace('Test', '');
+
+            // ファイル名の組み立て (例: A01.mp4)
+            const videoFileName = `${videoType}${suffix}.mp4`;
+
+            // 動画のパス (例: Test01/A01.mp4)
+            const videoSrc = `${currentTestFolder}/${videoFileName}`;
+
+            videoPlayer.src = videoSrc;
+            videoPlayer.play().catch(e => console.warn('Autoplay error:', e));
+
+            // デバッグ用ファイル名の表示
+            document.getElementById('debug-filename').textContent = videoSrc;
+
+            // 動作指示テキストの表示
+            const instructionSpan = document.getElementById('instruction-text');
+            if (idTextData[currentTestFolder]) {
+                instructionSpan.textContent = idTextData[currentTestFolder];
+            } else {
+                instructionSpan.textContent = "（テキスト取得エラー）";
+            }
+
+            // 進捗の更新
+            progressText.textContent = `${overallVideoCount} / ${TOTAL_VIDEOS}本目`;
+
+            // スライダーをデフォルト（中央）に戻す
+            score1Input.value = "2";
+            score2Input.value = "2";
+        }
+
+        /**
+         * 全動画の評価が完了した時の処理（GASへのデータ送信）
+         */
+        function finishEvaluation() {
+            showScreen(loadingScreen);
+
+            const payload = {
+                participantId: currentParticipantId,
+                results: evaluationResults
+            };
+
+            // GAS へ POST 送信
+            fetch(GAS_WEB_APP_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'text/plain',
+                },
+                body: JSON.stringify(payload)
+            })
+                .then(response => {
+                    showScreen(endScreen);
+                })
+                .catch(error => {
+                    console.error('通信エラー:', error);
+                    alert('通信エラーが発生しました。インターネット接続を確認してください。（' + error + '）');
+                    showScreen(endScreen);
+                });
+        }
+
+        // ==========================================
+        // イベントリスナー
+        // ==========================================
+
+        // 参加者IDが選択されたらボタンを活性化
+        participantIdSelect.addEventListener('change', (e) => {
+            if (e.target.value !== "") {
+                startBtn.disabled = false;
+            }
+        });
+
+        // 「アンケートに進む」ボタン
+        startBtn.addEventListener('click', () => {
+            currentParticipantId = participantIdSelect.value;
+
+            // テストフォルダのインデックスを初期化
+            currentTestFolderIndex = 0;
+            overallVideoCount = 1;
+            evaluationResults = [];
+
+            prepareNextTestFolder();
+            showScreen(evalScreen);
+        });
+
+        // 「次に進む」ボタン
+        nextBtn.addEventListener('click', () => {
+            const currentTestFolder = TEST_FOLDERS[currentTestFolderIndex];
+            const videoType = shuffledVideoTypes[currentVideoIndexInTest];
+            const suffix = currentTestFolder.replace('Test', '');
+            const videoFileName = `${videoType}${suffix}.mp4`;
+            const currentVideoPath = `${currentTestFolder}/${videoFileName}`;
+
+            // 今回の評価結果を配列にpush
+            evaluationResults.push({
+                testFolder: currentTestFolder,
+                videoFileName: videoFileName,
+                videoPath: currentVideoPath,
+                score1: parseInt(score1Input.value, 10),
+                score2: parseInt(score2Input.value, 10)
+            });
+
+            currentVideoIndexInTest++;
+            overallVideoCount++;
+
+            // 状態遷移の判定
+            if (currentVideoIndexInTest >= VIDEOS_PER_TEST) {
+                // 現在のテストフォルダ内の動画(3本)が終わった場合
+                currentTestFolderIndex++;
+                if (currentTestFolderIndex >= TEST_FOLDERS.length) {
+                    // 全てのテストフォルダが終わった場合
+                    finishEvaluation();
+                } else {
+                    // 次のテストフォルダに移行 (再度A,B,Cをシャッフル)
+                    prepareNextTestFolder();
+                }
+            } else {
+                // 同じテストフォルダ内の次の動画に移行
+                loadCurrentVideo();
+            }
+        });
+    </script>
+</body>
+
+</html>

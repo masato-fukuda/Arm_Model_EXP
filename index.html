@@ -270,6 +270,7 @@
         // 状態管理変数
         // ==========================================
         let currentParticipantId = '';
+        let shuffledTestFolders = [];
         let currentTestFolderIndex = 0;
         let shuffledVideoTypes = [];
         let currentVideoIndexInTest = 0;
@@ -379,7 +380,7 @@
          * 現在評価する動画を読み込み・UIのリセットを行う
          */
         function loadCurrentVideo() {
-            const currentTestFolder = TEST_FOLDERS[currentTestFolderIndex];
+            const currentTestFolder = shuffledTestFolders[currentTestFolderIndex];
             const videoType = shuffledVideoTypes[currentVideoIndexInTest]; // "A", "B", または "C"
 
             // "Test01" から "01" 等を抽出
@@ -457,7 +458,8 @@
         startBtn.addEventListener('click', () => {
             currentParticipantId = participantIdSelect.value;
 
-            // テストフォルダのインデックスを初期化
+            // テストフォルダ順をシャッフル
+            shuffledTestFolders = shuffleArray(TEST_FOLDERS);
             currentTestFolderIndex = 0;
             overallVideoCount = 1;
             evaluationResults = [];
@@ -468,7 +470,7 @@
 
         // 「次に進む」ボタン
         nextBtn.addEventListener('click', () => {
-            const currentTestFolder = TEST_FOLDERS[currentTestFolderIndex];
+            const currentTestFolder = shuffledTestFolders[currentTestFolderIndex];
             const videoType = shuffledVideoTypes[currentVideoIndexInTest];
             const suffix = currentTestFolder.replace('Test', '');
             const videoFileName = `${videoType}${suffix}.mp4`;
@@ -490,7 +492,7 @@
             if (currentVideoIndexInTest >= VIDEOS_PER_TEST) {
                 // 現在のテストフォルダ内の動画(3本)が終わった場合
                 currentTestFolderIndex++;
-                if (currentTestFolderIndex >= TEST_FOLDERS.length) {
+                if (currentTestFolderIndex >= shuffledTestFolders.length) {
                     // 全てのテストフォルダが終わった場合
                     finishEvaluation();
                 } else {
